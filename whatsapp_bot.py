@@ -7,49 +7,9 @@ import time
 import random
 import os
 import sys
-import traceback
-
-
-def load_contacts(filepath):
-    contacts = []
-    with open(filepath, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#'):
-                contacts.append(line)
-    return contacts
-
-
-def load_message(filepath):
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return f.read().strip()
-
-
-def random_delay(min_minutes=2, max_minutes=5):
-    delay = random.uniform(min_minutes * 60, max_minutes * 60)
-    print(f"Aguardando {delay/60:.1f} minutos...")
-    time.sleep(delay)
-
-
-def send_whatsapp_message(driver, phone, message):
-    try:
-        url = f"https://web.whatsapp.com/send?phone={phone}&text={message}"
-        driver.get(url)
-
-        wait = WebDriverWait(driver, 60)
-
-        send_btn = wait.until(
-            EC.element_to_be_clickable((By.XPATH, '//span[@data-icon="send"]'))
-        )
-        time.sleep(random.uniform(0.5, 1.5))
-        send_btn.click()
-
-        time.sleep(random.uniform(1, 2))
-        print(f"  Mensagem enviada para {phone}")
-        return True
-    except Exception as e:
-        print(f"  Erro ao enviar para {phone}: {e}")
-        return False
+import threading
+import tkinter as tk
+from tkinter import scrolledtext, messagebox
 
 
 def get_base_path():
@@ -58,72 +18,174 @@ def get_base_path():
     return os.path.dirname(__file__)
 
 
-def main():
-    base_path = get_base_path()
-    contacts_file = os.path.join(base_path, 'contatos.txt')
-    message_file = os.path.join(base_path, 'mensagem.txt')
-
-    if not os.path.exists(contacts_file):
-        print(f"Arquivo {contacts_file} nao encontrado.")
-        pause()
-        return
-
-    if not os.path.exists(message_file):
-        print(f"Arquivo {message_file} nao encontrado.")
-        pause()
-        return
-
-    contacts = load_contacts(contacts_file)
-    message = load_message(message_file)
-
-    print(f"Carregados {len(contacts)} contatos.")
-    print(f"Mensagem: {message[:50]}...")
-    print()
-
-    options = uc.ChromeOptions()
-    options.add_argument("--start-maximized")
-    options.add_argument("--disable-notifications")
-
-    driver = uc.Chrome(options=options)
-
-    try:
-        print("Abrindo WhatsApp Web...")
-        driver.get("https://web.whatsapp.com")
-
-        print("Escaneie o QR Code com seu celular...")
-        print("Pressione ENTER quando estiver logado...")
-        pause()
-
-        print(f"\nIniciando disparo para {len(contacts)} contatos...\n")
-
-        for i, phone in enumerate(contacts, 1):
-            print(f"[{i}/{len(contacts)}] Enviando para {phone}...")
-            send_whatsapp_message(driver, phone, message)
-
-            if i < len(contacts):
-                random_delay(2, 5)
-
-        print("\nDisparo concluido!")
-
-    except Exception as e:
-        print(f"\nErro: {e}")
-        traceback.print_exc()
-    finally:
+class WhatsAppBot:
+    def __init__(self):
+        self.driver = None
+        self.running = False
+        self.base_path = get_base_path()
+        
+        self.root = tk.Tk()
+        self.root.title("WhatsApp Bot - Disparo Automatico")
+        self.root.geometry("500x400")
+        self.root.resizable(False, False)
+        
+        frame_top = tk.Frame(self.root, padx=10, pady=10)
+        frame_top.pack(fill=tk.X)
+        
+        tk.Label(frame_top, text="Mensagem:", font=("Arial", 10, "bold")).pack(anchor=tk.W)
+        
+        self.msg_text = scrolledtext.ScrolledText(frame_top, height=4, width=50)
+        self.msg_text.pack(fill=tk.X, pady=(0, 10))
+        
+        msg_file = os.path.join(self.base_path, 'mensagem.txt')
+        if os.path.exists(msg_file):
+            with open(msg_file, 'r', encoding='utf-8') as f:
+                self.msg_text.insert(tk.END, f.read().strip())
+        
+        tk.Label(frame_top, text="Contatos:", font=("Arial", 10, "bold")).pack(anchor=tk.W)
+        
+        self.contacts_text = scrolledtext.ScrolledText(frame_top, height=3, width=50)
+        self.contacts_text.pack(fill=tk.X, pady=(0, 10))
+        
+        contacts_file = os.path.join(self.base_path, 'contatos.txt')
+        if os.path.exists(contacts_file):
+            with open(contacts_file, 'r', encoding='utf-8') as f:
+                self.contacts_text.insert(tk.END, f.read())
+        
+        frame_btn = tk.Frame(self.root, padx=10, pady=5)
+        frame_btn.pack(fill=tk.X)
+        
+        self.btn_start = tk.Button(frame_btn, text="INICIAR", command=self.start_bot, 
+                                    bg="#25D366", fg="white", font=("Arial", 12, "bold"),
+                                    width=15, height=2)
+        self.btn_start.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.btn_stop = tk.Button(frame_btn, text="PARAR", command=self.stop_bot,
+                                   bg="#FF0000", fg="white", font=("Arial", 12, "bold"),
+                                   width=15, height=2, state=tk.DISABLED)
+        self.btn_stop.pack(side=tk.LEFT)
+        
+        frame_log = tk.Frame(self.root, padx=10, pady=5)
+        frame_log.pack(fill=tk.BOTH, expand=True)
+        
+        tk.Label(frame_log, text="Log:", font=("Arial", 10, "bold")).pack(anchor=tk.W)
+        
+        self.log_text = scrolledtext.ScrolledText(frame_log, height=8, width=50, state=tk.DISABLED)
+        self.log_text.pack(fill=tk.BOTH, expand=True)
+        
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.root.mainloop()
+    
+    def log(self, msg):
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.insert(tk.END, msg + "\n")
+        self.log_text.see(tk.END)
+        self.log_text.config(state=tk.DISABLED)
+    
+    def start_bot(self):
+        msg = self.msg_text.get("1.0", tk.END).strip()
+        contacts_raw = self.contacts_text.get("1.0", tk.END).strip()
+        
+        if not msg:
+            messagebox.showerror("Erro", "Digite a mensagem!")
+            return
+        
+        contacts = [c.strip() for c in contacts_raw.split('\n') if c.strip()]
+        if not contacts:
+            messagebox.showerror("Erro", "Adicione pelo menos 1 contato!")
+            return
+        
+        self.running = True
+        self.btn_start.config(state=tk.DISABLED)
+        self.btn_stop.config(state=tk.NORMAL)
+        
+        thread = threading.Thread(target=self.run_bot, args=(contacts, msg), daemon=True)
+        thread.start()
+    
+    def stop_bot(self):
+        self.running = False
+        self.log("Parando bot...")
+        if self.driver:
+            try:
+                self.driver.quit()
+            except:
+                pass
+        self.btn_start.config(state=tk.NORMAL)
+        self.btn_stop.config(state=tk.DISABLED)
+    
+    def run_bot(self, contacts, message):
         try:
-            driver.quit()
-        except:
-            pass
-
-    pause()
-
-
-def pause():
-    print("\nPressione ENTER para continuar...")
-    try:
-        input()
-    except EOFError:
-        time.sleep(999999)
+            self.log("Iniciando Chrome...")
+            
+            options = uc.ChromeOptions()
+            options.add_argument("--start-maximized")
+            options.add_argument("--disable-notifications")
+            
+            self.driver = uc.Chrome(options=options)
+            
+            self.log("Abrindo WhatsApp Web...")
+            self.driver.get("https://web.whatsapp.com")
+            
+            self.log("Escaneie o QR Code...")
+            self.log("Aguardando login (60s)...")
+            time.sleep(60)
+            
+            self.log(f"Enviando para {len(contacts)} contatos...")
+            
+            for i, phone in enumerate(contacts, 1):
+                if not self.running:
+                    self.log("Bot parado pelo usuario.")
+                    break
+                
+                self.log(f"[{i}/{len(contacts)}] {phone}...")
+                
+                try:
+                    url = f"https://web.whatsapp.com/send?phone={phone}&text={message}"
+                    self.driver.get(url)
+                    
+                    wait = WebDriverWait(self.driver, 60)
+                    send_btn = wait.until(
+                        EC.element_to_be_clickable((By.XPATH, '//span[@data-icon="send"]'))
+                    )
+                    time.sleep(random.uniform(0.5, 1.5))
+                    send_btn.click()
+                    time.sleep(random.uniform(1, 2))
+                    
+                    self.log(f"  OK!")
+                except Exception as e:
+                    self.log(f"  Erro: {e}")
+                
+                if i < len(contacts) and self.running:
+                    delay = random.uniform(120, 300)
+                    self.log(f"  Aguardando {delay/60:.1f} min...")
+                    
+                    waited = 0
+                    while waited < delay and self.running:
+                        time.sleep(1)
+                        waited += 1
+            
+            self.log("Disparo concluido!")
+            
+        except Exception as e:
+            self.log(f"Erro: {e}")
+        finally:
+            try:
+                if self.driver:
+                    self.driver.quit()
+            except:
+                pass
+            self.btn_start.config(state=tk.NORMAL)
+            self.btn_stop.config(state=tk.DISABLED)
+            self.running = False
+    
+    def on_close(self):
+        if self.driver:
+            try:
+                self.driver.quit()
+            except:
+                pass
+        self.root.destroy()
 
 
 if __name__ == "__main__":
-    main()
+    WhatsAppBot()

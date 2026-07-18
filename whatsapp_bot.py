@@ -19,7 +19,10 @@ from tkinter import scrolledtext, messagebox
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
+        try:
+            return sys._MEIPASS
+        except AttributeError:
+            return os.path.dirname(sys.executable)
     return os.path.dirname(__file__)
 
 
@@ -66,7 +69,9 @@ class WhatsAppBot:
         msg_file = os.path.join(self.base_path, 'mensagem.txt')
         if os.path.exists(msg_file):
             with open(msg_file, 'r', encoding='utf-8') as f:
-                self.msg_text.insert(tk.END, f.read().strip())
+                content = f.read().strip()
+                if content:
+                    self.msg_text.insert(tk.END, content)
         
         tk.Label(frame_top, text="Contatos:", font=("Arial", 10, "bold")).pack(anchor=tk.W)
         
@@ -76,7 +81,9 @@ class WhatsAppBot:
         contacts_file = os.path.join(self.base_path, 'contatos.txt')
         if os.path.exists(contacts_file):
             with open(contacts_file, 'r', encoding='utf-8') as f:
-                self.contacts_text.insert(tk.END, f.read())
+                content = f.read().strip()
+                if content:
+                    self.contacts_text.insert(tk.END, content)
         
         frame_img = tk.Frame(frame_top, padx=0, pady=5)
         frame_img.pack(fill=tk.X)

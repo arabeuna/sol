@@ -22,6 +22,7 @@ class WhatsAppBot:
     def __init__(self):
         self.driver = None
         self.running = False
+        self.login_ready = tk.BooleanVar(value=False)
         self.base_path = get_base_path()
         
         self.root = tk.Tk()
@@ -65,6 +66,11 @@ class WhatsAppBot:
                                    width=15, height=2, state=tk.DISABLED)
         self.btn_stop.pack(side=tk.LEFT)
         
+        self.btn_login = tk.Button(frame_btn, text="JA LOGUEI", command=self.confirm_login,
+                                    bg="#075E54", fg="white", font=("Arial", 12, "bold"),
+                                    width=15, height=2, state=tk.DISABLED)
+        self.btn_login.pack(side=tk.LEFT)
+        
         frame_log = tk.Frame(self.root, padx=10, pady=5)
         frame_log.pack(fill=tk.BOTH, expand=True)
         
@@ -96,8 +102,10 @@ class WhatsAppBot:
             return
         
         self.running = True
+        self.login_ready.set(False)
         self.btn_start.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.NORMAL)
+        self.btn_login.config(state=tk.NORMAL)
         
         thread = threading.Thread(target=self.run_bot, args=(contacts, msg), daemon=True)
         thread.start()
@@ -112,6 +120,11 @@ class WhatsAppBot:
                 pass
         self.btn_start.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.DISABLED)
+        self.btn_login.config(state=tk.DISABLED)
+    
+    def confirm_login(self):
+        self.login_ready.set(True)
+        self.btn_login.config(state=tk.DISABLED)
     
     def run_bot(self, contacts, message):
         try:
@@ -126,9 +139,17 @@ class WhatsAppBot:
             self.log("Abrindo WhatsApp Web...")
             self.driver.get("https://web.whatsapp.com")
             
-            self.log("Escaneie o QR Code...")
-            self.log("Aguardando login (60s)...")
-            time.sleep(60)
+            self.log("")
+            self.log("=== ESCANEIE O QR CODE ===")
+            self.log("1. Abra WhatsApp no celular")
+            self.log("2. Va em Configuracoes > Aparelhos conectados")
+            self.log("3. Clique em Conectar aparelho")
+            self.log("4. Escaneie o QR Code que aparece no Chrome")
+            self.log("")
+            self.log("Aguardando voce escanear...")
+            self.log("(Clique JA LOGUEI quando terminar)")
+            
+            self.root.wait_variable(self.login_ready)
             
             self.log(f"Enviando para {len(contacts)} contatos...")
             
@@ -176,6 +197,7 @@ class WhatsAppBot:
                 pass
             self.btn_start.config(state=tk.NORMAL)
             self.btn_stop.config(state=tk.DISABLED)
+            self.btn_login.config(state=tk.DISABLED)
             self.running = False
     
     def on_close(self):

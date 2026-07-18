@@ -1,8 +1,11 @@
 import undetected_chromedriver as uc
+from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.webdriver.edge.service import Service as EdgeService
 import time
 import random
 import os
@@ -16,6 +19,26 @@ def get_base_path():
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(__file__)
+
+
+def find_browser():
+    chrome_paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    ]
+    for path in chrome_paths:
+        if os.path.exists(path):
+            return "chrome", path
+    
+    edge_paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    ]
+    for path in edge_paths:
+        if os.path.exists(path):
+            return "edge", path
+    
+    return None, None
 
 
 class WhatsAppBot:
@@ -128,13 +151,27 @@ class WhatsAppBot:
     
     def run_bot(self, contacts, message):
         try:
-            self.log("Iniciando Chrome...")
+            browser_type, browser_path = find_browser()
             
-            options = uc.ChromeOptions()
-            options.add_argument("--start-maximized")
-            options.add_argument("--disable-notifications")
+            if browser_type is None:
+                self.log("ERRO: Nenhum navegador encontrado!")
+                self.log("Instale Chrome ou Edge.")
+                return
             
-            self.driver = uc.Chrome(options=options)
+            self.log(f"Navegador: {browser_type.upper()}")
+            self.log("Iniciando navegador...")
+            
+            if browser_type == "chrome":
+                options = uc.ChromeOptions()
+                options.add_argument("--start-maximized")
+                options.add_argument("--disable-notifications")
+                self.driver = uc.Chrome(options=options)
+            else:
+                options = EdgeOptions()
+                options.add_argument("--start-maximized")
+                options.add_argument("--disable-notifications")
+                options.binary_location = browser_path
+                self.driver = webdriver.Edge(options=options)
             
             self.log("Abrindo WhatsApp Web...")
             self.driver.get("https://web.whatsapp.com")
@@ -144,7 +181,7 @@ class WhatsAppBot:
             self.log("1. Abra WhatsApp no celular")
             self.log("2. Va em Configuracoes > Aparelhos conectados")
             self.log("3. Clique em Conectar aparelho")
-            self.log("4. Escaneie o QR Code que aparece no Chrome")
+            self.log("4. Escaneie o QR Code que aparece no navegador")
             self.log("")
             self.log("Aguardando voce escanear...")
             self.log("(Clique JA LOGUEI quando terminar)")

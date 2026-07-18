@@ -137,6 +137,9 @@ class WhatsAppBot:
             self.btn_img.config(bg="#25D366")
     
     def start_bot(self):
+        if self.running:
+            return
+        
         msg = self.msg_text.get("1.0", tk.END).strip()
         contacts_raw = self.contacts_text.get("1.0", tk.END).strip()
         
@@ -156,6 +159,10 @@ class WhatsAppBot:
         self.btn_start.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.NORMAL)
         self.btn_login.config(state=tk.NORMAL)
+        
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.delete("1.0", tk.END)
+        self.log_text.config(state=tk.DISABLED)
         
         thread = threading.Thread(target=self.run_bot, args=(contacts, msg, image), daemon=True)
         thread.start()
@@ -239,26 +246,27 @@ class WhatsAppBot:
                     
                     if image:
                         attach_btn = wait.until(
-                            EC.element_to_be_clickable((By.XPATH, '//span[@data-icon="plus"]'))
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[data-icon="plus"]'))
                         )
+                        time.sleep(0.5)
                         attach_btn.click()
-                        time.sleep(1)
+                        time.sleep(2)
                         
                         file_input = wait.until(
-                            EC.presence_of_element_located((By.XPATH, '//input[@accept="image/*,video/mp4,video/3gpp,video/quicktime"][@type="file"]'))
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="file"][accept*="image"]'))
                         )
-                        file_input.send_keys(image)
-                        time.sleep(3)
+                        file_input.send_keys(os.path.abspath(image))
+                        time.sleep(4)
                         
                         if message:
                             caption_box = wait.until(
-                                EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]'))
+                                EC.presence_of_element_located((By.CSS_SELECTOR, 'div[contenteditable="true"][data-tab="10"]'))
                             )
                             caption_box.send_keys(message)
                             time.sleep(1)
                         
                         send_btn = wait.until(
-                            EC.element_to_be_clickable((By.XPATH, '//span[@data-icon="send"]'))
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[data-icon="send"]'))
                         )
                         send_btn.click()
                     else:

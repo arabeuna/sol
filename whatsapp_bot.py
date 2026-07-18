@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.edge.service import Service as EdgeService
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
 import time
 import random
 import os
@@ -171,7 +172,8 @@ class WhatsAppBot:
                 options.add_argument("--start-maximized")
                 options.add_argument("--disable-notifications")
                 options.binary_location = browser_path
-                self.driver = webdriver.Edge(options=options)
+                service = EdgeService(EdgeChromiumDriverManager().install())
+                self.driver = webdriver.Edge(service=service, options=options)
             
             self.log("Abrindo WhatsApp Web...")
             self.driver.get("https://web.whatsapp.com")

@@ -225,6 +225,8 @@ class WhatsAppBot:
             
             self.log(f"Enviando para {len(contacts)} contatos...")
             
+            time.sleep(5)
+            
             for i, phone in enumerate(contacts, 1):
                 if not self.running:
                     self.log("Bot parado pelo usuario.")
@@ -236,13 +238,15 @@ class WhatsAppBot:
                     url = f"https://web.whatsapp.com/send?phone={phone}"
                     self.driver.get(url)
                     
-                    wait = WebDriverWait(self.driver, 60)
+                    time.sleep(5)
+                    
+                    wait = WebDriverWait(self.driver, 30)
                     
                     msg_box = wait.until(
-                        EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]'))
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'div[contenteditable="true"][role="textbox"]'))
                     )
                     
-                    time.sleep(random.uniform(2, 4))
+                    time.sleep(random.uniform(2, 3))
                     
                     if image:
                         attach_btn = wait.until(
@@ -253,14 +257,14 @@ class WhatsAppBot:
                         time.sleep(2)
                         
                         file_input = wait.until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="file"][accept*="image"]'))
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="file"]'))
                         )
                         file_input.send_keys(os.path.abspath(image))
-                        time.sleep(4)
+                        time.sleep(5)
                         
                         if message:
                             caption_box = wait.until(
-                                EC.presence_of_element_located((By.CSS_SELECTOR, 'div[contenteditable="true"][data-tab="10"]'))
+                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'div[contenteditable="true"][role="textbox"]'))
                             )
                             caption_box.send_keys(message)
                             time.sleep(1)

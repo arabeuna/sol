@@ -7,6 +7,7 @@ import time
 import random
 import os
 import sys
+import traceback
 
 
 def load_contacts(filepath):
@@ -28,12 +29,6 @@ def random_delay(min_minutes=2, max_minutes=5):
     delay = random.uniform(min_minutes * 60, max_minutes * 60)
     print(f"Aguardando {delay/60:.1f} minutos...")
     time.sleep(delay)
-
-
-def simulate_human_typing(element, text):
-    for char in text:
-        element.send_keys(char)
-        time.sleep(random.uniform(0.05, 0.15))
 
 
 def send_whatsapp_message(driver, phone, message):
@@ -70,11 +65,13 @@ def main():
 
     if not os.path.exists(contacts_file):
         print(f"Arquivo {contacts_file} nao encontrado.")
-        sys.exit(1)
+        pause()
+        return
 
     if not os.path.exists(message_file):
         print(f"Arquivo {message_file} nao encontrado.")
-        sys.exit(1)
+        pause()
+        return
 
     contacts = load_contacts(contacts_file)
     message = load_message(message_file)
@@ -95,7 +92,7 @@ def main():
 
         print("Escaneie o QR Code com seu celular...")
         print("Pressione ENTER quando estiver logado...")
-        input()
+        pause()
 
         print(f"\nIniciando disparo para {len(contacts)} contatos...\n")
 
@@ -108,15 +105,24 @@ def main():
 
         print("\nDisparo concluido!")
 
-    except KeyboardInterrupt:
-        print("\nInterrompido pelo usuario.")
     except Exception as e:
-        print(f"Erro: {e}")
+        print(f"\nErro: {e}")
+        traceback.print_exc()
     finally:
-        driver.quit()
+        try:
+            driver.quit()
+        except:
+            pass
 
-    print("\nPressione ENTER para sair...")
-    input()
+    pause()
+
+
+def pause():
+    print("\nPressione ENTER para continuar...")
+    try:
+        input()
+    except EOFError:
+        time.sleep(999999)
 
 
 if __name__ == "__main__":

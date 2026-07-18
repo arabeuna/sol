@@ -45,10 +45,10 @@ class WhatsAppBot:
     def __init__(self):
         self.driver = None
         self.running = False
-        self.login_ready = tk.BooleanVar(value=False)
         self.base_path = get_base_path()
         
         self.root = tk.Tk()
+        self.login_ready = tk.BooleanVar(value=False)
         self.root.title("WhatsApp Bot - Disparo Automatico")
         self.root.geometry("500x400")
         self.root.resizable(False, False)

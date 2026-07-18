@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.edge.service import Service as EdgeService
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from tkinter import filedialog
 import time
 import random
 import os
@@ -77,6 +78,18 @@ class WhatsAppBot:
             with open(contacts_file, 'r', encoding='utf-8') as f:
                 self.contacts_text.insert(tk.END, f.read())
         
+        frame_img = tk.Frame(frame_top, padx=0, pady=5)
+        frame_img.pack(fill=tk.X)
+        
+        tk.Label(frame_img, text="Imagem (opcional):", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        
+        self.img_path = tk.StringVar(value="Nenhuma imagem selecionada")
+        tk.Label(frame_img, textvariable=self.img_path, fg="gray").pack(side=tk.LEFT, padx=(5, 10))
+        
+        self.btn_img = tk.Button(frame_img, text="Selecionar", command=self.select_image,
+                                  bg="#128C7E", fg="white", font=("Arial", 9, "bold"))
+        self.btn_img.pack(side=tk.LEFT)
+        
         frame_btn = tk.Frame(self.root, padx=10, pady=5)
         frame_btn.pack(fill=tk.X)
         
@@ -112,12 +125,23 @@ class WhatsAppBot:
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
     
+    def select_image(self):
+        path = filedialog.askopenfilename(
+            title="Selecionar imagem",
+            filetypes=[("Imagens", "*.png *.jpg *.jpeg *.gif *.bmp *.webp")]
+        )
+        if path:
+            self.selected_image = path
+            filename = os.path.basename(path)
+            self.img_path.set(filename)
+            self.btn_img.config(bg="#25D366")
+    
     def start_bot(self):
         msg = self.msg_text.get("1.0", tk.END).strip()
         contacts_raw = self.contacts_text.get("1.0", tk.END).strip()
         
-        if not msg:
-            messagebox.showerror("Erro", "Digite a mensagem!")
+        if not msg and not hasattr(self, 'selected_image'):
+            messagebox.showerror("Erro", "Digite a mensagem ou selecione uma imagem!")
             return
         
         contacts = [c.strip() for c in contacts_raw.split('\n') if c.strip()]
@@ -125,13 +149,15 @@ class WhatsAppBot:
             messagebox.showerror("Erro", "Adicione pelo menos 1 contato!")
             return
         
+        image = getattr(self, 'selected_image', None)
+        
         self.running = True
         self.login_ready.set(False)
         self.btn_start.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.NORMAL)
         self.btn_login.config(state=tk.NORMAL)
         
-        thread = threading.Thread(target=self.run_bot, args=(contacts, msg), daemon=True)
+        thread = threading.Thread(target=self.run_bot, args=(contacts, msg, image), daemon=True)
         thread.start()
     
     def stop_bot(self):
@@ -150,7 +176,7 @@ class WhatsAppBot:
         self.login_ready.set(True)
         self.btn_login.config(state=tk.DISABLED)
     
-    def run_bot(self, contacts, message):
+    def run_bot(self, contacts, message, image=None):
         try:
             browser_type, browser_path = find_browser()
             
@@ -200,7 +226,7 @@ class WhatsAppBot:
                 self.log(f"[{i}/{len(contacts)}] {phone}...")
                 
                 try:
-                    url = f"https://web.whatsapp.com/send?phone={phone}&text={message}"
+                    url = f"https://web.whatsapp.com/send?phone={phone}"
                     self.driver.get(url)
                     
                     wait = WebDriverWait(self.driver, 60)
@@ -211,7 +237,35 @@ class WhatsAppBot:
                     
                     time.sleep(random.uniform(2, 4))
                     
-                    msg_box.send_keys(Keys.ENTER)
+                    if image:
+                        attach_btn = wait.until(
+                            EC.element_to_be_clickable((By.XPATH, '//span[@data-icon="plus"]'))
+                        )
+                        attach_btn.click()
+                        time.sleep(1)
+                        
+                        file_input = wait.until(
+                            EC.presence_of_element_located((By.XPATH, '//input[@accept="image/*,video/mp4,video/3gpp,video/quicktime"][@type="file"]'))
+                        )
+                        file_input.send_keys(image)
+                        time.sleep(3)
+                        
+                        if message:
+                            caption_box = wait.until(
+                                EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]'))
+                            )
+                            caption_box.send_keys(message)
+                            time.sleep(1)
+                        
+                        send_btn = wait.until(
+                            EC.element_to_be_clickable((By.XPATH, '//span[@data-icon="send"]'))
+                        )
+                        send_btn.click()
+                    else:
+                        msg_box.send_keys(message)
+                        time.sleep(1)
+                        msg_box.send_keys(Keys.ENTER)
+                    
                     time.sleep(random.uniform(1, 2))
                     
                     self.log(f"  OK!")

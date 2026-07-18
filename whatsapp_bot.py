@@ -204,11 +204,14 @@ class WhatsAppBot:
                     self.driver.get(url)
                     
                     wait = WebDriverWait(self.driver, 60)
-                    send_btn = wait.until(
-                        EC.element_to_be_clickable((By.XPATH, '//span[@data-icon="send"]'))
+                    
+                    msg_box = wait.until(
+                        EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]'))
                     )
-                    time.sleep(random.uniform(0.5, 1.5))
-                    send_btn.click()
+                    
+                    time.sleep(random.uniform(2, 4))
+                    
+                    msg_box.send_keys(Keys.ENTER)
                     time.sleep(random.uniform(1, 2))
                     
                     self.log(f"  OK!")

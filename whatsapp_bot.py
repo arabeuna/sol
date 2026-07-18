@@ -57,9 +57,16 @@ def send_whatsapp_message(driver, phone, message):
         return False
 
 
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(__file__)
+
+
 def main():
-    contacts_file = os.path.join(os.path.dirname(__file__), 'contatos.txt')
-    message_file = os.path.join(os.path.dirname(__file__), 'mensagem.txt')
+    base_path = get_base_path()
+    contacts_file = os.path.join(base_path, 'contatos.txt')
+    message_file = os.path.join(base_path, 'mensagem.txt')
 
     if not os.path.exists(contacts_file):
         print(f"Arquivo {contacts_file} nao encontrado.")
@@ -107,6 +114,9 @@ def main():
         print(f"Erro: {e}")
     finally:
         driver.quit()
+
+    print("\nPressione ENTER para sair...")
+    input()
 
 
 if __name__ == "__main__":
